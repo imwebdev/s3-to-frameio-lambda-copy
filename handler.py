@@ -1,11 +1,15 @@
 import boto3
+from botocore.client import ClientError
 import frameioclient
 import os
 import mimetypes
 import json
 
+###### ADD YOUR TOKEN HERE ######
+FRAMEIO_TOKEN = 'your_frameio_token'
+
 s3_client = boto3.client('s3')
-frameio_client = frameioclient.FrameioClient(os.getenv('PIXELVIEW_FIO_TOKEN'))
+frameio_client = frameioclient.FrameioClient(FRAMEIO_TOKEN)
 
 
 class File:
@@ -88,19 +92,46 @@ def recursive_copy(bucket, path, parent_asset_id):
             )
 
 
-def hello(event, context):
-    # bucket = 'simplezapp'
-    # project = 'test'
+def copy(event, context):
+    try:
+        body = json.loads(event['body'])
 
-    # recursive_copy(bucket=bucket, path='', parent_asset_id=project_root_asset_id(project))
+        bucket = body['bucket']
+        project = body['project']
+        frameio_token = body['frameio_token']
+    except (TypeError, KeyError):
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"message": "Please provide bucket, project and frameio_token"})
+        }
 
-    body = {
-        "message": f"Returning",
-    }
+    # Simple authentication
+    if not frameio_token == FRAMEIO_TOKEN:
+        return {
+            "statusCode": 401,
+            "body": json.dumps({"message": "Unauthorized"})
+        }
 
-    response = {
+    # Validate project and bucket
+    root_asset_id = project_root_asset_id(project)
+    if not root_asset_id:
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"message": f"Unable to find Frame.io project {project}"})
+        }
+
+    try:
+        s3_client.head_bucket(Bucket=bucket)
+    except ClientError as e:
+        print(e)
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"message": f"Unable to find bucket {bucket}"})
+        }
+
+    recursive_copy(bucket, path='', parent_asset_id=root_asset_id)
+
+    return {
         "statusCode": 200,
-        "body": json.dumps(body)
+        "body": json.dumps({"message": "Copy started successfully!"})
     }
-
-    return response
