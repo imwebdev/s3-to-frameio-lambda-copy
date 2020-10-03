@@ -1,33 +1,37 @@
 import boto3
-from botocore.client import ClientError
+from botocore.client import ClientError, Config
 import frameioclient
 import os
 import mimetypes
 import json
+from time import time
 
 ###### ADD YOUR TOKEN HERE ######
-FRAMEIO_TOKEN = 'your_frameio_token'
+FRAMEIO_TOKEN = 'your_token'
 
-s3_client = boto3.client('s3')
+s3 = boto3.resource('s3')
+lambda_client = boto3.client('lambda', config=Config(region_name='us-east-1'))
 frameio_client = frameioclient.FrameioClient(FRAMEIO_TOKEN)
+LAMBDA_TIMEOUT = 2
 
 
-class File:
-    def __init__(self, name, path, size, parent_asset_id, bucket):
+class Asset:
+    def __init__(self, name, path, size, parent_asset_id, bucket_name, is_file=True):
         self.name = name
         self.path = path
         self.size = size
         self.parent_asset_id = parent_asset_id
-        self.bucket = bucket
+        self.bucket_name = bucket_name
+        self.is_file = is_file
 
 
 def generate_s3_url(bucket, file_path):
-    return s3_client.generate_presigned_url('get_object',
-                                            Params={'Bucket': bucket,
-                                                    'Key': file_path})
+    return s3.meta.client.generate_presigned_url('get_object',
+                                                 Params={'Bucket': bucket,
+                                                         'Key': file_path})
 
 
-def create_folder(parent_asset_id, name):
+def create_folder(name, parent_asset_id):
     return frameio_client.create_asset(
         parent_asset_id=parent_asset_id,
         name=name,
@@ -36,7 +40,7 @@ def create_folder(parent_asset_id, name):
 
 
 def upload_file(file):
-    s3_url = generate_s3_url(file.bucket, file.path)
+    s3_url = generate_s3_url(file.bucket_name, file.path)
 
     frameio_client.create_asset(
         parent_asset_id=file.parent_asset_id,
@@ -61,44 +65,97 @@ def project_root_asset_id(project_name):
     return None
 
 
-def recursive_copy(bucket, path, parent_asset_id):
-    result = s3_client.list_objects_v2(Bucket=bucket, Prefix=path, Delimiter='/')
+def lambda_timeout(start_time):
+    if time() - start_time > LAMBDA_TIMEOUT:
+        return True
 
-    # Files in path
-    for file in result.get('Contents'):
-        if file.get('Size') != 0:
-            upload_file(File(
-                name=os.path.basename(file.get('Key')),
-                path=file.get('Key'),
-                size=file.get('Size'),
-                parent_asset_id=parent_asset_id,
-                bucket=bucket
-            ))
-
-    # Folders in path
-    if result.get('CommonPrefixes'):  # If folders in path
-        for folder in result.get('CommonPrefixes'):
-            folder_path = folder.get('Prefix')
-
-            new_frameio_folder = create_folder(
-                parent_asset_id=parent_asset_id,
-                name=os.path.basename(os.path.normpath(folder_path))
-            )
-
-            recursive_copy(
-                bucket=bucket,
-                path=folder_path,
-                parent_asset_id=new_frameio_folder['id']
-            )
+    return False
 
 
 def copy(event, context):
+    bucket_name = event['bucket_name']
+    previous_asset = event['previous_asset']
+    continued_run = event['continued_run']
+    parent_ids = event['parent_ids']
+
+    start_time = time()
+    previous_folder = ''
+
+    objects = s3.Bucket(bucket_name).objects.all()
+    for object in objects:
+        # If this lambda continues where another left of, first iterate down to the last uploaded file.
+        if continued_run == 'true':
+            if object.key != previous_asset:
+                continue
+            else:
+                continued_run = 'false'
+                continue
+
+        # Delete finished folder from dict to keep size down.
+        current_folder = os.path.dirname(object.key[:-1])
+        if len(current_folder) < len(previous_folder):     # We've moved back up in folder structure
+            del parent_ids[previous_folder]
+
+        # If lambda timeout is getting close, spawn a new one and end this one.
+        if lambda_timeout(start_time):
+            lambda_client.invoke(
+                FunctionName='s3-to-frameio-lambda-copy-dev-copy',
+                InvocationType='Event',
+                Payload=json.dumps({
+                    'bucket_name': bucket_name,
+                    'previous_asset': previous_asset,
+                    'continued_run': 'true',
+                    'parent_ids': parent_ids})  # Dict with all folder - asset_id pairs. '' is root.
+            )
+
+            return
+
+        # Process files and folders.
+        if object.key.endswith('/'):
+            asset = Asset(
+                name=os.path.basename(os.path.normpath(object.key)),
+                is_file=False,
+                path=object.key,
+                size=0,
+                parent_asset_id=parent_ids[current_folder],
+                bucket_name=bucket_name
+            )
+
+        else:
+            asset = Asset(
+                name=os.path.basename(object.key),
+                is_file=True,
+                path=object.key,
+                size=object.Object().content_length,
+                parent_asset_id=parent_ids[current_folder],
+                bucket_name=bucket_name
+            )
+
+        if asset.is_file:
+            print(f'Uploading file: {object.key}')
+            upload_file(asset)
+
+        else:
+            print(f'Creating folder: {object.key}')
+            new_folder = create_folder(
+                name=asset.name,
+                parent_asset_id=asset.parent_asset_id
+            )
+
+            parent_ids[asset.path[:-1]] = new_folder['id']
+
+        previous_asset = object.key
+        previous_folder = current_folder
+
+
+def main(event, context):
     try:
         body = json.loads(event['body'])
 
         bucket = body['bucket']
         project = body['project']
         frameio_token = body['frameio_token']
+
     except (TypeError, KeyError):
         return {
             "statusCode": 400,
@@ -121,7 +178,7 @@ def copy(event, context):
         }
 
     try:
-        s3_client.head_bucket(Bucket=bucket)
+        s3.meta.client.head_bucket(Bucket=bucket)
     except ClientError as e:
         print(e)
         return {
@@ -129,9 +186,17 @@ def copy(event, context):
             "body": json.dumps({"message": f"Unable to find bucket {bucket}"})
         }
 
-    recursive_copy(bucket, path='', parent_asset_id=root_asset_id)
+    lambda_client.invoke(
+        FunctionName='s3-to-frameio-lambda-copy-dev-copy',
+        InvocationType='Event',
+        Payload=json.dumps({
+            'bucket_name': bucket,
+            'previous_asset': '',
+            'continued_run': 'false',
+            'parent_ids': {'': root_asset_id}})     # Dict with all folder -> asset_id pairs. '' is root.
+    )
 
     return {
         "statusCode": 200,
-        "body": json.dumps({"message": "Copy started successfully!"})
+        "body": json.dumps({"message": "Copy started!"})
     }
