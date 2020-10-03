@@ -2,9 +2,7 @@
   "name": "s3-to-frameio-lambda-copy",
   "description": "",
   "version": "0.1.0",
-  "dependencies": {
-    "serverless-plugin-lambda-dead-letter": "^1.2.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "serverless-python-requirements": "^5.1.0"
   }
