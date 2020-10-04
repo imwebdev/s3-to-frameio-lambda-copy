@@ -1,4 +1,4 @@
-### s3-to-frameio-lambda-copy
+### S3 to Frame.io Lambda copy
 
 Serverless workflow to copy a bucket into a [Frame.io](https://frame.io) project using Lambda.
 
@@ -25,5 +25,17 @@ Make sure you have npm and docker installed and running.
     npm install -g serverless
     sls plugin install -n serverless-python-requirements
     
+   Setup AWS credentials: https://www.youtube.com/watch?v=KngM5bfpttA
+    
     Open handler.py and add your Frame.io developer token.
     sls deploy
+
+
+
+Trigger by making a [POST request](https://reqbin.com/req/v0crmky0/rest-api-post-example) with the below JSON content to your new endpoint.
+    
+    {
+      "bucket": "your_bucket",
+      "project": "your_frameio_project",
+      "token": "your_frameio_dev_token"
+    }
