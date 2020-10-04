@@ -5,6 +5,7 @@ provider:
   name: aws
   runtime: python3.8
   memorySize: 1024
+  timeout: 900
   region: us-east-1
   iamRoleStatements:
     - Effect: Allow
