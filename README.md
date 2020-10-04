@@ -1,6 +1,6 @@
 ### s3-to-frameio-lambda-copy
 
-Serverless workflow to copy a bucket into a Frame.io project using Lambda.
+Serverless workflow to copy a bucket into a [Frame.io](https://frame.io) project using Lambda.
 
 #### Features:
 - Quick copy from S3 to Frame.io
@@ -14,7 +14,7 @@ Serverless workflow to copy a bucket into a Frame.io project using Lambda.
 - Copy Lambda copies S3 -> Frame.io
 - Copy restarts itself if Lambda timeouts
 
-Copy is done by generating a presigned S3 URL and sending it Frame.io for ingest.
+Copying is done by generating a presigned S3 URL and sending it Frame.io for ingest.
 
 #### Getting started:
 
