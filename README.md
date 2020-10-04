@@ -2,12 +2,12 @@
 
 Serverless workflow to copy a bucket into a Frame.io project using Lambda.
 
-####Features:
+#### Features:
 - Quick copy from S3 to Frame.io
 - Handles any file and bucket size
 - Preserves folder structure
 
-####Architecture:
+#### Architecture:
 
 - API Gateway triggers the workflow from a POST request
 - Main Lambda verifies project info
@@ -16,7 +16,7 @@ Serverless workflow to copy a bucket into a Frame.io project using Lambda.
 
 Copy is done by generating a presigned S3 URL and sending it Frame.io for ingest.
 
-####Getting started:
+#### Getting started:
 
 Make sure you have npm and docker installed and running.
     
