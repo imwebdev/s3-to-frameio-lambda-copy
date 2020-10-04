@@ -34,4 +34,4 @@ functions:
           method: post
   copy:
     handler: handler.copy
-    reservedConcurrency: 5
+    reservedConcurrency: 3
