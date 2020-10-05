@@ -160,7 +160,7 @@ def main(event, context):
     except (TypeError, KeyError):
         return {
             "statusCode": 400,
-            "body": json.dumps({"message": "Please provide bucket, project and frameio_token"})
+            "body": json.dumps({"message": "Please provide bucket, project and token"})
         }
 
     # Simple authentication
