@@ -7,7 +7,7 @@ import json
 from time import time
 
 ###### ADD YOUR TOKEN HERE ######
-FRAMEIO_TOKEN = 'your_token'
+FRAMEIO_TOKEN = 'fio-u-BM05dCodF8Mg5JqTrlRu8BhdoT8D3PR0gqfwypwm6r0bePtAi9E9hmQaa5HHMSO0'
 
 s3 = boto3.resource('s3')
 lambda_client = boto3.client('lambda', config=Config(region_name='us-east-1'))
