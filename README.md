@@ -85,10 +85,22 @@ resources: 21
 api keys:
   None
 endpoints:
-  POST - https://gzwj0pkcrb.execute-api.us-east-1.amazonaws.com/dev/
+  POST - https://xxxxxx.us-east-1.amazonaws.com/dev/
 functions:
   main: s3-to-frameio-lambda-copy-dev-main
   copy: s3-to-frameio-lambda-copy-dev-copy
 layers:
   None
 Serverless: Publishing service to the Serverless Dashboard...
+
+
+TEST VIDEO PROCESSING 
+Go to https://reqbin.com/req/v0crmky0/rest-api-post-example
+For the URL type in the POST Endpoint URL you got from the previous step.  It should look like this: https://xxxxxx.us-east-1.amazonaws.com/dev/
+Select the Content Tab and enter the below.  Substituting the values with your own
+
+{
+  "bucket": "lsg-recordings",
+  "project": "S3Upload",
+  "token": "XXXX"
+}
