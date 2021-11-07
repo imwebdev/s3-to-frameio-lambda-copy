@@ -46,7 +46,7 @@ STEP BY STEP USING CLOUD 9
 
     Install Python 3.8 - https://tecadmin.net/install-python-3-8-amazon-linux/
 
-Step by Step:
+- Step by Step:
 sudo yum install gcc openssl-devel bzip2-devel libffi-devel  zlib-devel
 cd /opt
 sudo wget https://www.python.org/ftp/python/3.8.12/Python-3.8.12.tgz
@@ -64,11 +64,12 @@ cd s3-to-frameio-lambda-copy
 npm install -g serverless
 sls plugin install -n serverless-python-requirements
 
-    Open handler.py and add your Frame.io developer token.
-    sls deploy
+- Open handler.py and add your Frame.io developer token.
+sls deploy
 
 SETUP SERVERLESS (Run below commands)
-serverless (then follow prompts on screen to connect Github/AWS)
+serverless 
+- (then follow prompts on screen to connect Github/AWS)
 pip install pipenv
 sudo cp /home/ec2-user/.local/lib/python3.7/site-packages/certifi/cacert.pem /usr/lib/python3.7/site-packages/pip/_vendor/certifi/
 docker system prune --all --force
@@ -100,7 +101,40 @@ For the URL type in the POST Endpoint URL you got from the previous step.  It sh
 Select the Content Tab and enter the below.  Substituting the values with your own
 
 {
-  "bucket": "lsg-recordings",
+  "bucket": "recordings",
   "project": "S3Upload",
   "token": "XXXX"
 }
+
+AUTOMATE PROCESS WITH LAMBDA
+You can write a simple Python script in Lambda and trigger it using S3
+
+Go To Lambda in AWS Console
+Click Create Function
+Then click Author from Scratch
+Give your function a name (AutomatedS3toFrameIOUpload)
+Choose Python 3.7 as your Runtime then click Create Function
+
+Here is the script:
+import json
+import requests
+
+def lambda_handler(event, context):
+
+#UPDATE THE URL
+    URL = "https://XXXX.execute-api.us-east-1.amazonaws.com/dev/"
+
+#UPDATE THE BELOW PAYLOAD SETTINGS
+    payload = {'bucket': "my-recordings", 'project': "S3Upload", 'token': "XXXX"}
+    requests.post(URL, json=payload)
+
+paste the above (changing the parameters to your own)
+
+- Go to Add trigger, and search for S3, and Select your bucket name
+- Under Event Type, Select All Object create events
+- Define a Prefix, if you want to restrict file types to only .mp4 or .mov for example
+- Check the Acknowledge box and click Add
+- Hit Deploy in Lambda
+
+RUN A TEST
+Copy a video file over to your S3 bucket that you defined above.  It will 
