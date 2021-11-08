@@ -116,6 +116,8 @@ Give your function a name (AutomatedS3toFrameIOUpload)
 Choose Python 3.7 as your Runtime then click Create Function
 
 Here is the script:
+
+--------------------------------------------
 import json
 import requests
 
@@ -127,6 +129,8 @@ def lambda_handler(event, context):
 #UPDATE THE BELOW PAYLOAD SETTINGS
     payload = {'bucket': "my-recordings", 'project': "S3Upload", 'token': "XXXX"}
     requests.post(URL, json=payload)
+
+--------------------------------------------
 
 paste the above (changing the parameters to your own)
 
